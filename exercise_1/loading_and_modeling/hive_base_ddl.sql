@@ -126,9 +126,9 @@ STORED AS TEXTFILE
 LOCATION '/user/w205/hospital_compare/measures'
 ;
 
-DROP TABLE survey;
+DROP TABLE surveys;
 
-CREATE EXTERNAL TABLE survey
+CREATE EXTERNAL TABLE surveys
 (
 provider_number string,
 hospital_name string,
