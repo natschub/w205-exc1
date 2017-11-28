@@ -1,14 +1,12 @@
-select state, avg(score) as score
-from hospitals_av_score
-where score IS NOT NULL
+tate, count(provider_id), avg(score) as score, sum(score) as sum_score, variance(score)
+from eff_care_2
 group by state
 order by score DESC
-limit 10
 ;
 
-select state, avg(score) as score
-where score IS NOT NULL
-from eff_care_table
+
+select state, count(provider_id), avg(score) as score, sum(score) as sum_score, variance(score)
+from reads_2
 group by state
 order by score DESC
 ;

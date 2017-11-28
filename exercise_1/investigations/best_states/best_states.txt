@@ -1,0 +1,62 @@
+Master for Best States:
+To find the best states for healthcare, we want to use the same procedure we did for the best hospitals analysis- eliminating null data and only counting hospitals that have more than 10 procedures or readmissions criteria scored. This gets rid of much of the faulty and inaccurate data- note that without this, PR is among the best places for healthcare because of systematic issues with the data.
+
+As a reminder, eff_care_1 is the effective_care table’s data without null values. Borrowing from the code used in the best hospitals analysis, we make eff_care_2, taking only hospitals that have more than 10 measures rated. 
+
+From eff_care_2, the process is very simple to get the best states, we just pull out the average score and other metrics after grouping by state. Much of ht logic follows the previous analysis. Note that since there are 50 states, i did not suppress the output to 10, as it is a digestible volume of data visually. The query is here:
+
+create table reads_2 as
+select provider_id, hospital_name, state, count(provider_id), avg(score) as score, sum(score) as sum_score
+from eff_care_1
+group by provider_id, hospital_name, state
+having count(provider_id)>10
+;
+
+select state, count(provider_id), avg(score) as score, sum(score) as sum_score, variance(score)
+from eff_care_2
+group by state
+order by score DESC
+;
+
+And the results:
+DC	7	112.72867608581893	789.1007326007325	417.703530005167
+MD	40	101.30236135800475	4052.09445432019	210.72352165923854
+NY	141	97.30382612566595	13719.839483718899	327.5208065155233
+DE	6	96.14136904761905	576.8482142857143	44.88388649730731
+NV	18	95.32863743010802	1715.9154737419444	355.90498019227584
+CA	223	94.30976067424697	21031.076630357074	341.2356943643448
+RI	11	91.45681969545606	1006.0250166500167	185.27958605722407
+MA	54	90.99008638118117	4913.464664583783	116.83894511755969
+NJ	61	90.36353222694959	5512.175465843925	146.03230572576916
+NH	15	90.0336988011988	1350.5054820179819	184.11932553578845
+
+The results make sense- these states are generally richer with better life expectancies than average (relying on my own intuition). It is interesting that only 7 hospitals in DC and 6 in DE contributed to its average score, which makes sense due to their sizes. While size is no guarantee of good hospitals- some of the most populous states like CA, NJ and NY are also listed. 
+
+Similarly to what we did in the best hospitals analysis, let us pressure test these outcomes using the readmissions/mortality data, which we hypothesis is an (imperfect) proxy for effective care.  Here is the query:
+
+create table reads_2 as
+select provider_id, hospital_name, state, count(provider_id), avg(score) as score, sum(score) as sum_score
+from eff_care_1
+group by provider_id, hospital_name, state
+having count(provider_id)>10
+;
+
+select state, count(provider_id), avg(score) as score, sum(score) as sum_score, variance(score)
+from reads_2
+group by state
+order by score DESC
+;
+
+and the results:
+ND	6	13.803921568627452	82.82352941176471	0.962706651287967
+DE	6	13.310294117647059	79.86176470588235	2.1885497765282573
+DC	7	13.208053221288514	92.4563725490196	11.539507597156513
+NJ	63	12.731520514188581	802.0857923938806	8.833419636256965
+WA	46	12.687982174475142	583.6471800258565	9.314268222147177
+NV	19	12.408692262330034	235.76515298427063	12.38193134034062
+MT	10	12.365808823529411	123.65808823529412	8.374811445717992
+NE	19	12.241961379693578	232.59726621417798	10.820018528025331
+NH	13	12.077582956259427	157.00857843137254	8.702361236944595
+AZ	47	11.644264220343697	547.2804183561537	11.637755186165016
+
+We get some of the same states: DE, DC, NJ, NV, NH. Interestingly, this analysis seems to favor states with fewer hospitals a bit more. Note that the scale is very different from in the previous analysis- the range is from 13.8-11.6, whereas the effective care analysis ranged from 112.7-90.0. Generally, variance seems to be correlated mostly with the volume of hospitals. It is reassuring that we had some states overlap in these analyses, and looking at all states and not just the top 10, there is general overlap in the trends/types of states that rank high and low.

@@ -1,0 +1,59 @@
+Master for investigations- best hospitals:
+
+A few assumptions, since the accompanying information from HHS is not detailed: we assume that the “score” columns in the effective_care and readmissions tables relate to how well a hospital performs each procedure or combats each potential cause of readmission/mortality. For example, a hospital that scored high in all its effective_care columns means it provided good care for a range of procedures, and a hostile that scored high in all of its readmissions columns means that it successfully prevented or minimized all potential causes of mortality/readmissions. 
+
+The eff_care_table has a score for each hospital and each procedure. This query takes the average the procedures for each hospital, and then gives the hospitals with the top 10 average total scores. If the data were high-quality, we would expect this query to answer the question of which hospitals provide the best care across a range of procedures. However, we must add a step, because many hospitals are missing data for many procedures. For example, there are many hospitals, clustered in PR, that have a very high score for only one procedure and null data for many others, so their average score is artificially very high. We want to exclude them, so we use the table eff_care_1, which filters out the null data, and search hospitals where there are a minimum number of procedures listed to ensure we are getting a measurement across a wide range of procedures. I picked 10 here, somewhat arbitrarily, but this seems to take care of much of this issue.
+
+The discussed query: 
+select provider_id,  hospital_name, count(provider_id), state, avg(score) as
+score, sum(score), variance(score)
+from eff_care_1
+where score IS NOT NULL
+group by provider_id, hospital_name, state
+having count(provider_id)>10
+order by score DESC
+limit 10
+;
+
+The results:
+050060	COMMUNITY REGIONAL MEDICAL CENTER	14	CA	187.71428571428572	2628	78368.77551020405
+050315	KERN MEDICAL CENTER	12	CA	172.83333333333334	2074	60760.6388888889
+330182	ST FRANCIS HOSPITAL, ROSLYN	12	NY	171.5	2058	47747.916666666664
+050492	CLOVIS COMMUNITY MEDICAL CENTER	14	CA	165.0	2310	56427.42857142858
+450029	LAREDO MEDICAL CENTER	12	TX	163.0	1956	55314.5
+110079	GRADY MEMORIAL HOSPITAL	14	GA	161.71428571428572	2264	37060.91836734694
+050327	LOMA LINDA UNIVERSITY MEDICAL CENTER	15	CA	156.86666666666667	2353	37430.782222222224
+050295	MERCY HOSPITAL	17	CA	148.1764705882353	2519	36303.32179930795
+090011	MEDSTAR WASHINGTON HOSPITAL CENTER	14	DC	145.21428571428572	2033	30066.168367346945
+110165	SOUTHERN REGIONAL MEDICAL CENTER	14	GA	144.28571428571428	2020	19619.346938775507
+
+Note that all hospitals selected as the top 10 in the us are evaluated on at least 12/17 possible procedures, indicating we are truly getting a cross section across a range of procedures. We have a concentration of hospitals in CA, NY and GA, which is interesting but not necessarily unexpected. Our average scores range from 187.7-144.3, which is a reasonable range and supports that our scores are reasonable. 
+
+To pressure test these answers, let us try a similar procedure with the readmissions/mortality data. The hypothesis is that the readmissions/mortality data is a proxy for effective care- if effective care is provided, a hospital will score similarly high on its prevention of readmissions and mortality. We use a similarly structured query: 
+
+select provider_id,  hospital_name, count(provider_id), state, avg(score) as
+score, sum(score), variance(score)
+from reads_1
+where score IS NOT NULL
+group by provider_id, hospital_name, state
+having count(provider_id)>10
+order by score DESC
+limit 10
+;
+
+
+The results:
+330233	BROOKDALE HOSPITAL MEDICAL CENTER	14	NY	19.214285714285715	269	2361.025510204082
+100022	JACKSON MEMORIAL HOSPITAL	16	FL	18.9375	303	2516.30859375
+330004	HEALTHALLIANCE HOSPITAL BROADWAY CAMPUS	14	NY	18.428571428571427	258	2192.673469387755
+180141	UNIVERSITY OF LOUISVILLE HOSPITAL	15	KY	17.666666666666668	265	1765.5555555555554
+010085	DECATUR MORGAN HOSPITAL-DECATUR CAMPUS	15	AL	17.6	264	2109.306666666667
+050320	HIGHLAND HOSPITAL	15	CA	17.6	264	1676.3733333333334
+330196	CONEY ISLAND HOSPITAL	14	NY	17.571428571428573	246	1913.530612244898
+010006	ELIZA COFFEE MEMORIAL HOSPITAL	16	AL	17.5625	281	2211.74609375
+110064	MIDTOWN MEDICAL CENTER	15	GA	17.533333333333335	263	1726.3822222222225
+450039	JPS HEALTH NETWORK	16	TX	17.5	280	2198.3749999999995
+
+Unfortunately, none of these hospitals are repeated from the best hospitals analysis of the effective care data. However, the data all make sense, we have a tight range of average scores, from 19.2-17.5, a range of hospitals including some from NY, CA and GA, and all have scores averaged from across at least 14 procedures.
+
+While either analysis would make sense, the first one more accurately answers the question of which hospitals provide the best care across a range of procedures, and the second answers which hospitals see the best results. Clearly one is not a perfect proxy for the other. It is also important to consider the quality of the data- many hospitals do not have scores for all procedures or measures of readmission, and many hospitals were excluded from this analysis because of the flawed and incomplete data. 
