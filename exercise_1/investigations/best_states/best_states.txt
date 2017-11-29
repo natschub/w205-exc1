@@ -1,16 +1,20 @@
 Master for Best States:
 To find the best states for healthcare, we want to use the same procedure we did for the best hospitals analysis- eliminating null data and only counting hospitals that have more than 10 procedures or readmissions criteria scored. This gets rid of much of the faulty and inaccurate data- note that without this, PR is among the best places for healthcare because of systematic issues with the data.
 
-As a reminder, eff_care_1 is the effective_care table’s data without null values. Borrowing from the code used in the best hospitals analysis, we make eff_care_2, taking only hospitals that have more than 10 measures rated. 
+As a reminder, eff_care_1 is the effective_care table’s data without null
+values. Borrowing from the code used in the best hospitals analysis, we make
+eff_care_2, taking only hospitals that have more than 10 measures rated. here
+is the query to get to eff_care_2:
 
-From eff_care_2, the process is very simple to get the best states, we just pull out the average score and other metrics after grouping by state. Much of ht logic follows the previous analysis. Note that since there are 50 states, i did not suppress the output to 10, as it is a digestible volume of data visually. The query is here:
-
-create table reads_2 as
-select provider_id, hospital_name, state, count(provider_id), avg(score) as score, sum(score) as sum_score
+create table eff_care_2 as
+select provider_id, hospital_name, state, count(provider_id), avg(score) as
+score, sum(score) as sum_score
 from eff_care_1
 group by provider_id, hospital_name, state
 having count(provider_id)>10
 ;
+
+From here, we just just group the eff_care_2 data by state:
 
 select state, count(provider_id), avg(score) as score, sum(score) as sum_score, variance(score)
 from eff_care_2
