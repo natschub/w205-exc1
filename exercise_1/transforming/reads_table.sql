@@ -12,7 +12,7 @@ where score is not null
 
 create table reads_2 as
 select provider_id, hospital_name, state, count(provider_id), avg(score) as score, sum(score) as sum_score
-from eff_care_1
+from reads_table_1
 group by provider_id, hospital_name, state
 having count(provider_id)>10
 ;
