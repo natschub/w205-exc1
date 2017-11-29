@@ -1,0 +1,34 @@
+Master- Survey:
+
+To test the correlation between the average score (which comes from the hospitals table), the score from the effective care table of a hospital’s average performance across different procedures, and the average survey result scores, we need to take several steps to get the data into one table:
+- create a table join hospital average score to survey score
+- pull the average score per hospital across procedures from the effective care table (here we use eff_care_1, which just filters out null values)
+- join both tables 
+The three steps are detailed in the steps below. Note that I didn’t think it was necessary to pull out missing data, as many of the hospitals that we observed had erratic data in earlier steps do not have survey response data, and the joins performed filtered out all data that didn’t link up to a valid survey response. 
+
+create table  survey_table as
+select hospitals.provider_id, hospitals.hospital_name, cast(hospitals.hospital_overall_rating as int) avg_score, cast(surveys.hcahps_base_score as int) survey_score
+from hospitals right join surveys on hospitals.provider_id=surveys.provider_number
+;
+
+create table eff_care_for_survey as
+select provider_id, hospital_name, avg(score) as av_score
+from eff_care_1
+group by provider_id, hospital_name
+;
+
+create table survey_analysis as
+select survey_table.provider_id, survey_table.hospital_name, survey_table.avg_score, survey_table.survey_score, eff_care_for_survey.av_score as eff_care_score
+from survey_table 
+left join eff_care_for_survey on survey_table.provider_id=eff_care_for_survey.provider_id
+;
+
+We now have one table with all three scores, which we can run a simple corr query on:
+
+select corr(avg_score, survey_score), corr(eff_care_score,survey_score) from survey_analysis;
+
+Results:
+0.5177761287037175	-0.28542895664074475
+
+There is a relatively strong correlation between the average score and the survey score, of .52. However, there is a moderately strong negative correlation between the effective care score and the survey score of -.29. This is very interesting as it indicates that perhaps the criteria that determine effective care are not relevant to patients. Either that or the scales could be switched- we are assuming that higher scores equates to better performance. 
+

@@ -1,0 +1,67 @@
+ster- Hospital Variability
+
+To gauge the variability for a procedure across hospitals, we can run a query simply taking the variance of the score of each measure id for each hospital when grouping by measure id. As discussed previously, a good bit of the noise created by clearly bad data, like the hospitals in PR. Interestingly, much of that data was grouped along very rarely used measure_ids. By only examining data with >400 (slightly arbitrary cutoff, but ~1/10 of total hospitals) reported scores for a given measure id, we can remove much of the noise in the data. I would not worry about additional noise as the volumes of data we are looking at are very large, over 400 datapoints at least, whereas in previous analysis some hospitals only had a handful of valid scores determining their effectiveness. 
+
+The query looks like this:
+
+select measure_id, measure_name, count(measure_id), variance(score) as var, avg(score)
+from eff_care_1
+group by measure_id, measure_name
+having count(measure_id)>400
+sort by var desc
+;
+
+
+The results are as follows: 
+ED_1b	ED1	3702	10708.294429675885	277.1909778498109
+ED_2b	ED2	3693	4194.225315434555	100.88491741131871
+OP_18b	OP 18	3732	1767.0091192278167	141.37218649517686
+OP_3b	Median Time to Transfer to Another Facility for Acute Coronary Intervention	432	1572.6862086334006	60.761574074074076
+OP_29	Endoscopy/polyp surveillance: appropriate follow-up interval for normal colonoscopy in average risk patients	2821	597.1674895869468	79.98652959943283
+….
+….
+…
+OP_22	Left before being seen	3455	3.129123546277238	1.791027496382055
+
+Since there are only 18 measure ids that meet the criteria above, we can go through them on sight. The procedure with the most variability was ED1 and ED2, which are both related to treatment times, and almost all hospitals had scores. However, OP 22 also had most hospitals score on it, but had the least variability. Note that the data is very odd because the average scores vary widely in scale. The average score for ED1 is 277.2, while average score of OP22 is 1.8. 
+
+To counter this, we can normalize the scores we calculate the variance on by dividing each by the average score of its respective measure_id. This requires several steps of arithmetic so several additional tables in hive. We use a window function to find the average score by measure id, then divide each score by that average score per measure id, and then take the variance of the normalized score while grouping by each measure id. The queries are below: 
+
+create table eff_care_3 as
+select measure_id, measure_name, score, avg(score) over(partition by measure_id) as avg_score_by_id
+from eff_care_1
+; 
+create table eff_care_4 as 
+select measure_id, measure_name, score, avg_score_by_id, score/avg_score_by_id as norm_score
+from eff_care_3
+;
+
+select measure_id, measure_name, count(measure_id) as counts, variance(norm_score) as varnorm, avg_score_by_id
+from eff_care_4
+group by measure_id, measure_name, avg_score_by_id
+having count(measure_id)>400
+sort by varnorm desc
+;
+
+The results:
+VTE_6	Hospital acquired potentially preventable venous thromboembolism	1255	5.718603810925874	1.9410358565737051
+PC_01	Percent of newborns whose deliveries were scheduled early (1-3 weeks early), when a scheduled delivery was not medically necessary	2537	4.910134590836132	1.9763500197083168
+OP_22	Left before being seen	3455	0.9754796279806757	1.791027496382055
+OP_3b	Median Time to Transfer to Another Facility for Acute Coronary Intervention	432	0.4259749358848562	60.761574074074076
+ED_2b	ED2	3693	0.41209682794944497	100.88491741131871
+OP_20	Door to diagnostic eval	3738	0.38583611790410893	24.62466559657571
+OP_5	Median Time to ECG	2529	0.36480805607717437	8.252273625939106
+ED_1b	ED1	3702	0.13936769674215196	277.1909778498109
+OP_21	Median time to pain med	3530	0.11536861044384072	51.94844192634561
+OP_29	Endoscopy/polyp surveillance: appropriate follow-up interval for normal colonoscopy in average risk patients	2821	0.09333885039421597	79.98652959943283
+OP_18b	OP 18	3732	0.0884119238456085	141.37218649517686
+OP_23	Head CT results	1350	0.06941085015117855	72.68962962962964
+OP_30	Endoscopy/polyp surveillance: colonoscopy interval for patients with a history of adenomatous polyps - avoidance of inappropriate us2739	0.04977144503837809	86.24497991967871
+STK_4	Thrombolytic Therapy	994	0.03147146382998991	91.04728370221328
+IMM_3_OP_27_FAC_ADHPCT	Healthcare workers given influenza vaccination	4089	0.030966419273300457	84.50232330643189
+IMM_2	Immunization for influenza	4051	0.02053077727005595	91.83880523327574
+VTE_5	Warfarin therapy discharge instructions	2043	0.017281969452415443	92.67058247674987
+OP_4	Aspirin at Arrival	2497	0.00446532707438563	95.00560672807369
+
+The results show that the procedure with the highest variability across hospitals was VTE_6- preventable venous thromboembolisms. While ~1/4 of hospitals answered this, the normalized variability was 1.94. OP_4 Aspirin at arrival had the least normalized variability, of .004, which makes sense as that is easy. 
+
